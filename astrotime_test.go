@@ -23,7 +23,7 @@ var (
 	// Various latitudes.
 	places = map[string]place{
 		"ushuaia": place{
-			lat: -54.8019, lon: 68.3030,
+			lat: -54.8019, lon: -68.3030,
 			times: []sunData{
 				{day: northenSummer, sunrise: p("2017-07-10T12:51:36Z"), sunset: p("2017-07-10T20:26:12Z")},
 				{day: southernSummer, sunrise: p("2017-12-29T07:58:08Z"), sunset: p("2017-12-30T01:12:53Z")},
@@ -31,7 +31,7 @@ var (
 			},
 		},
 		"melbourne": place{
-			lat: -37.8136, lon: -144.9631,
+			lat: -37.8136, lon: 144.9631,
 			times: []sunData{
 				{day: northenSummer, sunrise: p("2017-07-09T21:34:30Z"), sunset: p("2017-07-10T07:16:53Z")},
 				{day: southernSummer, sunrise: p("2017-12-28T18:59:38Z"), sunset: p("2017-12-29T09:44:58Z")},
@@ -39,7 +39,7 @@ var (
 			},
 		},
 		"manila": place{
-			lat: 14.5995, lon: -120.9842,
+			lat: 14.5995, lon: 120.9842,
 			times: []sunData{
 				{day: northenSummer, sunrise: p("2017-07-09T21:33:22Z"), sunset: p("2017-07-10T10:29:34Z")},
 				{day: southernSummer, sunrise: p("2017-12-28T22:20:04Z"), sunset: p("2017-12-29T09:36:37Z")},
@@ -47,7 +47,7 @@ var (
 			},
 		},
 		"ulanBator": place{
-			lat: 47.8864, lon: -106.9057,
+			lat: 47.8864, lon: 106.9057,
 			times: []sunData{
 				{day: northenSummer, sunrise: p("2017-07-09T21:04:35Z"), sunset: p("2017-07-10T12:50:34Z")},
 				{day: southernSummer, sunrise: p("2017-12-29T00:41:36Z"), sunset: p("2017-12-29T09:07:50Z")},
@@ -55,7 +55,7 @@ var (
 			},
 		},
 		"reykjavik": place{
-			lat: 64.1265, lon: 21.8174,
+			lat: 64.1265, lon: -21.8174,
 			times: []sunData{
 				{day: northenSummer, sunrise: p("2017-07-10T03:28:45Z"), sunset: p("2017-07-10T23:34:34Z")},
 				{day: southernSummer, sunrise: p("2017-12-29T11:20:40Z"), sunset: p("2017-12-29T15:39:00Z")},

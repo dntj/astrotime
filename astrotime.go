@@ -144,19 +144,19 @@ func solarDeclination(t float64) float64 {
 func hourAngleSunrise(lat, solarDec float64) float64 {
 	latRad := degToRad * lat
 	sdRad := degToRad * solarDec
-	return (math.Acos(math.Cos(degToRad*90.833)/(math.Cos(latRad)*math.Cos(sdRad)) - math.Tan(latRad)*math.Tan(sdRad)))
+	return -math.Acos(math.Cos(degToRad*90.833)/(math.Cos(latRad)*math.Cos(sdRad)) - math.Tan(latRad)*math.Tan(sdRad))
 }
 
 // solNoonUTC calculates the Universal Coordinated Time (UTC) of solar noon for the
 // given day at the given location on earth.
 func solNoonUTC(t, longitude float64) float64 {
 	// First pass uses approximate solar noon to calculate eqtime
-	tnoon := julianCentury(julianDateFromJulianCentury(t) + longitude/360.0)
+	tnoon := julianCentury(julianDateFromJulianCentury(t) - longitude/360.0)
 	eqTime := equationOfTime(tnoon)
-	solNoonUTC := 720 + (longitude * 4) - eqTime
+	solNoonUTC := 720 - (longitude * 4) - eqTime
 	newt := julianCentury(julianDateFromJulianCentury(t) - 0.5 + solNoonUTC/1440.0)
 	eqTime = equationOfTime(newt)
-	return 720 + (longitude * 4) - eqTime
+	return 720 - (longitude * 4) - eqTime
 }
 
 // sunriseUTC calculates the UTC sunrise for the given day at the given location.
@@ -176,7 +176,7 @@ func sunriseUTC(jd, latitude, longitude float64) float64 {
 	solarDec := solarDeclination(tnoon)
 	hourAngle := hourAngleSunrise(latitude, solarDec)
 
-	delta := longitude - radToDeg*hourAngle
+	delta := radToDeg*hourAngle - longitude
 	timeDiff := 4 * delta
 	timeUTC := 720 + timeDiff - eqTime
 
@@ -186,7 +186,7 @@ func sunriseUTC(jd, latitude, longitude float64) float64 {
 	eqTime = equationOfTime(newt)
 	solarDec = solarDeclination(newt)
 	hourAngle = hourAngleSunrise(latitude, solarDec)
-	delta = longitude - radToDeg*hourAngle
+	delta = radToDeg*hourAngle - longitude
 	timeDiff = 4 * delta
 	timeUTC = 720 + timeDiff - eqTime
 	return timeUTC
@@ -229,7 +229,7 @@ func sunsetUTC(jd, latitude, longitude float64) float64 {
 	solarDec := solarDeclination(tnoon)
 	hourAngle := hourAngleSunset(latitude, solarDec)
 
-	delta := longitude - radToDeg*hourAngle
+	delta := -longitude - radToDeg*hourAngle
 	timeDiff := 4 * delta
 	timeUTC := 720 + timeDiff - eqTime
 
@@ -240,7 +240,7 @@ func sunsetUTC(jd, latitude, longitude float64) float64 {
 	solarDec = solarDeclination(newt)
 	hourAngle = hourAngleSunset(latitude, solarDec)
 
-	delta = longitude - radToDeg*hourAngle
+	delta = -longitude - radToDeg*hourAngle
 	timeDiff = 4 * delta
 	return 720 + timeDiff - eqTime
 }
