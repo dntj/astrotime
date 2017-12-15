@@ -1,34 +1,36 @@
+// Package astrotime implements NAAA.
 // NAA - NOAA's Astronomical Algorithms
-package astrotime
-
-// (JavaScript web page 
+// (JavaScript web page
 //  http://www.srrb.noaa.gov/highlights/sunrise/sunrise.html by
 //  Chris Cornwall, Aaron Horiuchi and Chris Lehman)
 // Ported to C++ by Pete Gray (petegray@ieee.org), July 2006
-// Released as Open Source and can be used in any way, as long as the 
+// Released as Open Source and can be used in any way, as long as the
 // above description remains in place.
+package astrotime
 
 import (
 	"math"
 	"time"
 )
 
-// Conversions
 const (
-	RadToDeg  = 180 / math.Pi
-	DegToRad  = math.Pi / 180
-	RadToGrad = 200 / math.Pi
-	GradToDeg = math.Pi / 200
+	radToDeg  = 180 / math.Pi
+	degToRad  = math.Pi / 180
+	radToGrad = 200 / math.Pi
+	gradToDeg = math.Pi / 200
+
+	oneDay = time.Hour * 24
 )
 
-// More time constants
-const (
-	OneDay = time.Hour * 24
-)
-
-// CalcJD converts a time.Time object to a julian date
-func CalcJD(t time.Time) float64 {
-	y, m, d, hh, mm, ss, ms := t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond()/1e6
+// julianDate converts a Time to a Julian date.
+func julianDate(t time.Time) float64 {
+	y := t.Year()
+	m := int(t.Month())
+	d := t.Day()
+	hh := t.Hour()
+	mm := t.Minute()
+	ss := t.Second()
+	ms := t.Nanosecond() / 1e6
 
 	// Calc integer part (days)
 	jday := (1461*(y+4800+(m-14)/12))/4 + (367*(m-2-12*((m-14)/12)))/12 - (3*((y+4900+(m-14)/12)/100))/4 + d - 32075
@@ -42,364 +44,231 @@ func CalcJD(t time.Time) float64 {
 	return jdatetime + float64(zoneOffset)/86400
 }
 
-// Name:    calcTimeJulianCent
-// Type:    Function
-// Purpose: convert Julian Day to centuries since J2000.0.
-// Arguments:
-//   jd : the Julian Day to convert
-// Return value:
-//   the T value corresponding to the Julian Day
-
-func calcTimeJulianCent(t float64) float64 {
-	return (t - 2451545.0) / 36525.0
+// julianCentury converts a Julian Day to centuries since J2000.0.
+func julianCentury(t float64) float64 {
+	return (t - 2451545) / 36525
 }
 
-// Name:    calcJDFromJulianCent
-// Type:    Function
-// Purpose: convert centuries since J2000.0 to Julian Day.
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   the Julian Day corresponding to the t value
-
-func calcJDFromJulianCent(t float64) float64 {
+// julianDateFromJulianCentury converts centuries since J2000.0 to Julian Day.
+func julianDateFromJulianCentury(t float64) float64 {
 	return t*36525.0 + 2451545.0
 }
 
-// Name:    calGeomMeanLongSun
-// Type:    Function
-// Purpose: calculate the Geometric Mean Longitude of the Sun
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   the Geometric Mean Longitude of the Sun in degrees
+// solarGeoMeanLon calculates the Geometric Mean Longitude of the Sun.
+func solarGeoMeanLon(t float64) float64 {
+	lon := math.Mod(280.46646+t*(36000.76983+0.0003032*t), 360)
+	if lon > 0.0 {
+		return lon
+	}
 
-func calcGeomMeanLongSun(t float64) float64 {
-	L0 := 280.46646 + t*(36000.76983+0.0003032*t)
-	for L0 > 360.0 {
-		L0 -= 360.0
-	}
-	for L0 < 0.0 {
-		L0 += 360.0
-	}
-	return L0
+	return lon + 360
 }
 
-// Name:    calcMeanObliquityOfEcliptic
-// Type:    Function
-// Purpose: calculate the mean obliquity of the ecliptic
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   mean obliquity in degrees
-
-func calcMeanObliquityOfEcliptic(t float64) float64 {
+// eclipticMeanObliquity calculates the mean obliquity of the ecliptic.
+func eclipticMeanObliquity(t float64) float64 {
 	seconds := 21.448 - t*(46.8150+t*(0.00059-t*(0.001813)))
 	return 23.0 + (26.0+(seconds/60.0))/60.0
 }
 
-// Name:    calcObliquityCorrection
-// Type:    Function
-// Purpose: calculate the corrected obliquity of the ecliptic
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   corrected obliquity in degrees
-
-func calcObliquityCorrection(t float64) float64 {
-	e0 := calcMeanObliquityOfEcliptic(t)
+// obliquityCorrection calculates the corrected obliquity of the ecliptic.
+func obliquityCorrection(t float64) float64 {
+	e0 := eclipticMeanObliquity(t)
 	omega := 125.04 - 1934.136*t
-	return e0 + 0.00256*math.Cos(omega*DegToRad)
+	return e0 + 0.00256*math.Cos(omega*degToRad)
 }
 
-// Name:    calcEccentricityEarthOrbit
-// Type:    Function
-// Purpose: calculate the eccentricity of earth's orbit
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   the unitless eccentricity
-
-func calcEccentricityEarthOrbit(t float64) float64 {
+// earthOrbitEccentricity calculates the eccentricity of earth's orbit.
+func earthOrbitEccentricity(t float64) float64 {
 	return 0.016708634 - t*(0.000042037+0.0000001267*t)
 }
 
-// Name:    calGeomAnomalySun
-// Type:    Function
-// Purpose: calculate the Geometric Mean Anomaly of the Sun
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   the Geometric Mean Anomaly of the Sun in degrees
-
-func calcGeomMeanAnomalySun(t float64) float64 {
+// meanSolarAnomaly calculates the Geometric Mean Anomaly of the Sun.
+func meanSolarAnomaly(t float64) float64 {
 	return 357.52911 + t*(35999.05029-0.0001537*t)
 }
 
-// Name:    calcEquationOfTime
-// Type:    Function
-// Purpose: calculate the difference between true solar time and mean
-//		solar time
-//Arguments:
-//  t : number of Julian centuries since J2000.0
-// Return value:
-//   equation of time in minutes of time
+// equationOfTime calculates the difference between true solar time and mean solar time.
+func equationOfTime(t float64) float64 {
+	epsilon := obliquityCorrection(t)
+	l0 := solarGeoMeanLon(t)
+	e := earthOrbitEccentricity(t)
+	m := meanSolarAnomaly(t)
 
-func calcEquationOfTime(t float64) float64 {
-	epsilon := calcObliquityCorrection(t)
-	l0 := calcGeomMeanLongSun(t)
-	e := calcEccentricityEarthOrbit(t)
-	m := calcGeomMeanAnomalySun(t)
-
-	y := math.Tan(DegToRad * epsilon / 2.0)
+	y := math.Tan(degToRad * epsilon / 2.0)
 	y *= y
 
-	sin2l0 := math.Sin(2.0 * DegToRad * l0)
-	sinm := math.Sin(DegToRad * m)
-	cos2l0 := math.Cos(2.0 * DegToRad * l0)
-	sin4l0 := math.Sin(4.0 * DegToRad * l0)
-	sin2m := math.Sin(2.0 * DegToRad * m)
+	sin2l0 := math.Sin(2.0 * degToRad * l0)
+	sinm := math.Sin(degToRad * m)
+	cos2l0 := math.Cos(2.0 * degToRad * l0)
+	sin4l0 := math.Sin(4.0 * degToRad * l0)
+	sin2m := math.Sin(2.0 * degToRad * m)
 
 	Etime := y*sin2l0 - 2.0*e*sinm + 4.0*e*y*sinm*cos2l0 - 0.5*y*y*sin4l0 - 1.25*e*e*sin2m
 
-	return RadToDeg * Etime * 4.0
+	return radToDeg * Etime * 4.0
 }
 
-// Name:    calcSunEqOfCenter
-// Type:    Function
-// Purpose: calculate the equation of center for the sun
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   in degrees
-
-func calcSunEqOfCenter(t float64) float64 {
-	m := calcGeomMeanAnomalySun(t)
-	mrad := DegToRad * m
+// solarEqOfCenter calculates the equation of center for the sun.
+func solarEqOfCenter(t float64) float64 {
+	m := meanSolarAnomaly(t)
+	mrad := degToRad * m
 	sinm := math.Sin(mrad)
 	sin2m := math.Sin(mrad + mrad)
 	sin3m := math.Sin(mrad + mrad + mrad)
 	return sinm*(1.914602-t*(0.004817+0.000014*t)) + sin2m*(0.019993-0.000101*t) + sin3m*0.000289
 }
 
-// Name:    calcSunTrueLong
-// Type:    Function
-// Purpose: calculate the true longitude of the sun
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   sun's true longitude in degrees
-
-func calcSunTrueLong(t float64) float64 {
-	l0 := calcGeomMeanLongSun(t)
-	c := calcSunEqOfCenter(t)
+// solarTrueLon calculates the true longitude of the sun.
+func solarTrueLon(t float64) float64 {
+	l0 := solarGeoMeanLon(t)
+	c := solarEqOfCenter(t)
 	return l0 + c
 }
 
-// Name:    calcSunApparentLong
-// Type:    Function
-// Purpose: calculate the apparent longitude of the sun
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   sun's apparent longitude in degrees
-
-func calcSunApparentLong(t float64) float64 {
-	o := calcSunTrueLong(t)
+// solarApparentLon calculates the apparent longitude of the sun.
+func solarApparentLon(t float64) float64 {
+	o := solarTrueLon(t)
 	omega := 125.04 - 1934.136*t
-	return o - 0.00569 - 0.00478*math.Sin(DegToRad*omega)
+	return o - 0.00569 - 0.00478*math.Sin(degToRad*omega)
 }
 
-// Name:    calcSunDeclination
-// Type:    Function
-// Purpose: calculate the declination of the sun
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-// Return value:
-//   sun's declination in degrees
-
-func calcSunDeclination(t float64) float64 {
-	e := calcObliquityCorrection(t)
-	lambda := calcSunApparentLong(t)
-	sint := math.Sin(DegToRad*e) * math.Sin(DegToRad*lambda)
-	return RadToDeg * math.Asin(sint)
+// solarDeclination calculates the declination of the sun.
+func solarDeclination(t float64) float64 {
+	e := obliquityCorrection(t)
+	lambda := solarApparentLon(t)
+	sint := math.Sin(degToRad*e) * math.Sin(degToRad*lambda)
+	return radToDeg * math.Asin(sint)
 }
 
-// Name:    calcHourAngleSunrise
-// Type:    Function
-// Purpose: calculate the hour angle of the sun at sunrise for the
-//			latitude
-//Arguments:
-//   lat : latitude of observer in degrees
-//	solarDec : declination angle of sun in degrees
-//Return value:
-//   hour angle of sunrise in radians
-
-func calcHourAngleSunrise(lat float64, solarDec float64) float64 {
-	latRad := DegToRad * lat
-	sdRad := DegToRad * solarDec
-	return (math.Acos(math.Cos(DegToRad*90.833)/(math.Cos(latRad)*math.Cos(sdRad)) - math.Tan(latRad)*math.Tan(sdRad)))
+// hourAngleSunrise calculates the hour angle of the sun at sunrise for the latitude.
+func hourAngleSunrise(lat, solarDec float64) float64 {
+	latRad := degToRad * lat
+	sdRad := degToRad * solarDec
+	return (math.Acos(math.Cos(degToRad*90.833)/(math.Cos(latRad)*math.Cos(sdRad)) - math.Tan(latRad)*math.Tan(sdRad)))
 }
 
-// Name:    calcSolNoonUTC
-// Type:    Function
-// Purpose: calculate the Universal Coordinated Time (UTC) of solar
-//		noon for the given day at the given location on earth
-// Arguments:
-//   t : number of Julian centuries since J2000.0
-//   longitude : longitude of observer in degrees
-// Return value:
-//   time in minutes from zero Z
-
-func calcSolNoonUTC(t float64, longitude float64) float64 {
+// solNoonUTC calculates the Universal Coordinated Time (UTC) of solar noon for the
+// given day at the given location on earth.
+func solNoonUTC(t, longitude float64) float64 {
 	// First pass uses approximate solar noon to calculate eqtime
-	tnoon := calcTimeJulianCent(calcJDFromJulianCent(t) + longitude/360.0)
-	eqTime := calcEquationOfTime(tnoon)
+	tnoon := julianCentury(julianDateFromJulianCentury(t) + longitude/360.0)
+	eqTime := equationOfTime(tnoon)
 	solNoonUTC := 720 + (longitude * 4) - eqTime
-	newt := calcTimeJulianCent(calcJDFromJulianCent(t) - 0.5 + solNoonUTC/1440.0)
-	eqTime = calcEquationOfTime(newt)
+	newt := julianCentury(julianDateFromJulianCentury(t) - 0.5 + solNoonUTC/1440.0)
+	eqTime = equationOfTime(newt)
 	return 720 + (longitude * 4) - eqTime
 }
 
-// Name:    calcSunriseUTC
-// Type:    Function
-// Purpose: calculate the Universal Coordinated Time (UTC) of sunrise
-//			for the given day at the given location on earth
-// Arguments:
-//   JD  : julian day
-//   latitude : latitude of observer in degrees
-//   longitude : longitude of observer in degrees
-// Return value:
-//   time in minutes from zero Z
-
-// Calculate the UTC sunrise for the given day at the given location
-func calcSunriseUTC(jd float64, latitude float64, longitude float64) float64 {
-
-	t := calcTimeJulianCent(jd)
+// sunriseUTC calculates the UTC sunrise for the given day at the given location.
+func sunriseUTC(jd, latitude, longitude float64) float64 {
+	t := julianCentury(jd)
 
 	// *** Find the time of solar noon at the location, and use
 	//     that declination. This is better than start of the
 	//     Julian day
 
-	noonmin := calcSolNoonUTC(t, longitude)
-	tnoon := calcTimeJulianCent(jd + noonmin/1440.0)
+	noonmin := solNoonUTC(t, longitude)
+	tnoon := julianCentury(jd + noonmin/1440.0)
 
 	// *** First pass to approximate sunrise (using solar noon)
 
-	eqTime := calcEquationOfTime(tnoon)
-	solarDec := calcSunDeclination(tnoon)
-	hourAngle := calcHourAngleSunrise(latitude, solarDec)
+	eqTime := equationOfTime(tnoon)
+	solarDec := solarDeclination(tnoon)
+	hourAngle := hourAngleSunrise(latitude, solarDec)
 
-	delta := longitude - RadToDeg*hourAngle
+	delta := longitude - radToDeg*hourAngle
 	timeDiff := 4 * delta
 	timeUTC := 720 + timeDiff - eqTime
 
 	// *** Second pass includes fractional jday in gamma calc
 
-	newt := calcTimeJulianCent(calcJDFromJulianCent(t) + timeUTC/1440.0)
-	eqTime = calcEquationOfTime(newt)
-	solarDec = calcSunDeclination(newt)
-	hourAngle = calcHourAngleSunrise(latitude, solarDec)
-	delta = longitude - RadToDeg*hourAngle
+	newt := julianCentury(julianDateFromJulianCentury(t) + timeUTC/1440.0)
+	eqTime = equationOfTime(newt)
+	solarDec = solarDeclination(newt)
+	hourAngle = hourAngleSunrise(latitude, solarDec)
+	delta = longitude - radToDeg*hourAngle
 	timeDiff = 4 * delta
 	timeUTC = 720 + timeDiff - eqTime
 	return timeUTC
 }
 
-// CalcSunrise calculates the sunrise, in local time,  on the day t at the 
+// Sunrise calculates the sunrise, in local time, on the day t at the
 // location specified in longitude and latitude.
-func CalcSunrise(t time.Time, latitude float64, longitude float64) time.Time {
-	jd := CalcJD(t)
-	sunriseUTC := time.Duration(math.Floor(calcSunriseUTC(jd, latitude, longitude)*60) * 1e9)
+func Sunrise(t time.Time, latitude, longitude float64) time.Time {
+	jd := julianDate(t)
+	sr := time.Duration(math.Floor(sunriseUTC(jd, latitude, longitude)*60) * 1e9)
 	loc, _ := time.LoadLocation("UTC")
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc).Add(sunriseUTC).In(t.Location())
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc).Add(sr).In(t.Location())
 }
 
-// Name:    calcHourAngleSunset
-// Type:    Function
-// Purpose: calculate the hour angle of the sun at sunset for the
-//			latitude
-// Arguments:
-//   lat : latitude of observer in degrees
-//	solarDec : declination angle of sun in degrees
-// Return value:
-//   hour angle of sunset in radians
+// hourAngleSunset calculates the hour angle of the sun at sunset for the latitude.
+func hourAngleSunset(lat, solarDec float64) float64 {
+	latRad := degToRad * lat
+	sdRad := degToRad * solarDec
 
-func calcHourAngleSunset(lat float64, solarDec float64) float64 {
-	latRad := DegToRad * lat
-	sdRad := DegToRad * solarDec
-
-	HA := (math.Acos(math.Cos(DegToRad*90.833)/(math.Cos(latRad)*math.Cos(sdRad)) - math.Tan(latRad)*math.Tan(sdRad)))
+	HA := (math.Acos(math.Cos(degToRad*90.833)/(math.Cos(latRad)*math.Cos(sdRad)) - math.Tan(latRad)*math.Tan(sdRad)))
 
 	return -HA // in radians
 }
 
-// Name:    calcSunsetUTC
-// Type:    Function
-// Purpose: calculate the Universal Coordinated Time (UTC) of sunset
-//			for the given day at the given location on earth
-//Arguments:
-//   JD  : julian day
-//   latitude : latitude of observer in degrees
-//   longitude : longitude of observer in degrees
-// Return value:
-//   time in minutes from zero Z
-
-func calcSunsetUTC(jd float64, latitude float64, longitude float64) float64 {
-	t := calcTimeJulianCent(jd)
+// sunsetUTC calculates the Universal Coordinated Time (UTC) of sunset
+// for the given day at the given location on earth.
+func sunsetUTC(jd, latitude, longitude float64) float64 {
+	t := julianCentury(jd)
 
 	// *** Find the time of solar noon at the location, and use
 	//     that declination. This is better than start of the
 	//     Julian day
 
-	noonmin := calcSolNoonUTC(t, longitude)
-	tnoon := calcTimeJulianCent(jd + noonmin/1440.0)
+	noonmin := solNoonUTC(t, longitude)
+	tnoon := julianCentury(jd + noonmin/1440.0)
 
 	// First calculates sunrise and approx length of day
 
-	eqTime := calcEquationOfTime(tnoon)
-	solarDec := calcSunDeclination(tnoon)
-	hourAngle := calcHourAngleSunset(latitude, solarDec)
+	eqTime := equationOfTime(tnoon)
+	solarDec := solarDeclination(tnoon)
+	hourAngle := hourAngleSunset(latitude, solarDec)
 
-	delta := longitude - RadToDeg*hourAngle
+	delta := longitude - radToDeg*hourAngle
 	timeDiff := 4 * delta
 	timeUTC := 720 + timeDiff - eqTime
 
 	// first pass used to include fractional day in gamma calc
 
-	newt := calcTimeJulianCent(calcJDFromJulianCent(t) + timeUTC/1440.0)
-	eqTime = calcEquationOfTime(newt)
-	solarDec = calcSunDeclination(newt)
-	hourAngle = calcHourAngleSunset(latitude, solarDec)
+	newt := julianCentury(julianDateFromJulianCentury(t) + timeUTC/1440.0)
+	eqTime = equationOfTime(newt)
+	solarDec = solarDeclination(newt)
+	hourAngle = hourAngleSunset(latitude, solarDec)
 
-	delta = longitude - RadToDeg*hourAngle
+	delta = longitude - radToDeg*hourAngle
 	timeDiff = 4 * delta
 	return 720 + timeDiff - eqTime
 }
 
-// CalcSunset calculates the sunset, in local time,  on the day t at the 
+// Sunset calculates the sunset, in local time, on the day t at the
 // location specified in longitude and latitude.
-func CalcSunset(t time.Time, latitude float64, longitude float64) time.Time {
-	jd := CalcJD(t)
-	sunsetUTC := time.Duration(math.Floor(calcSunsetUTC(jd, latitude, longitude)*60) * 1e9)
-	loc, _ := time.LoadLocation("UTC")
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc).Add(sunsetUTC).In(t.Location())
+func Sunset(t time.Time, latitude, longitude float64) time.Time {
+	jd := julianDate(t)
+	ss := time.Duration(math.Floor(sunsetUTC(jd, latitude, longitude)*60) * 1e9)
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC).Add(ss).In(t.Location())
 }
 
-// NextSunrise returns date/time of the next sunrise after tAfter
-func NextSunrise(tAfter time.Time, latitude float64, longitude float64) (tSunrise time.Time) {
-	tSunrise = CalcSunrise(tAfter, latitude, longitude)
-	if tAfter.After(tSunrise) {
-		tSunrise = CalcSunrise(tAfter.Add(OneDay), latitude, longitude)
+// NextSunrise returns date/time of the next sunrise after after
+func NextSunrise(after time.Time, latitude, longitude float64) time.Time {
+	s := Sunrise(after, latitude, longitude)
+	if after.Before(s) {
+		return s
 	}
-	return
+
+	return Sunrise(after.Add(oneDay), latitude, longitude)
 }
 
-// NextSunset returns date/time of the next sunset after tAfter
-func NextSunset(tAfter time.Time, latitude float64, longitude float64) (tSunset time.Time) {
-	tSunset = CalcSunset(tAfter, latitude, longitude)
-	if tAfter.After(tSunset) {
-		tSunset = CalcSunset(tAfter.Add(OneDay), latitude, longitude)
+// NextSunset returns date/time of the next sunset after after
+func NextSunset(after time.Time, latitude, longitude float64) time.Time {
+	s := Sunset(after, latitude, longitude)
+	if after.Before(s) {
+		return s
 	}
-	return
+
+	return Sunset(after.Add(oneDay), latitude, longitude)
 }

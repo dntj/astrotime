@@ -73,12 +73,12 @@ func p(s string) time.Time {
 	return t
 }
 
-func TestCalcSunrise(t *testing.T) {
+func TestSunrise(t *testing.T) {
 	for n, place := range places {
 		for _, d := range place.times {
 			name := fmt.Sprintf("%s on %v", n, d.day)
 			t.Run(name, func(t *testing.T) {
-				got := CalcSunrise(d.day, place.lat, place.lon)
+				got := Sunrise(d.day, place.lat, place.lon)
 				if got != d.sunrise {
 					t.Errorf("got sunrise %s, want %s", got, d.sunrise)
 				}
@@ -86,12 +86,12 @@ func TestCalcSunrise(t *testing.T) {
 		}
 	}
 }
-func TestCalcSunset(t *testing.T) {
+func TestSunset(t *testing.T) {
 	for n, place := range places {
 		for _, d := range place.times {
 			name := fmt.Sprintf("%s on %v", n, d.day)
 			t.Run(name, func(t *testing.T) {
-				got := CalcSunset(d.day, place.lat, place.lon)
+				got := Sunset(d.day, place.lat, place.lon)
 				if got != d.sunset {
 					t.Errorf("got sunrise %s, want %s", got, d.sunset)
 				}
